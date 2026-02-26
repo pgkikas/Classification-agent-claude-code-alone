@@ -77,6 +77,46 @@ async def save_result(result: dict):
     return {"saved": True, "path": path}
 
 
+@app.get("/api/search")
+async def search(q: str = ""):
+    """
+    Combined autocomplete search across accounts (637) and suppliers (6293).
+    Returns list of {code, desc, kind} where kind is 'account' or 'supplier'.
+    """
+    q = q.strip()
+    if len(q) < 2:
+        return []
+
+    import lookup as lk
+    results = []
+    seen: set[str] = set()
+
+    # 1. Account code prefix match (e.g. user types "62.07")
+    accs = lk.accounts()
+    for code, data in accs.items():
+        if code.startswith(q) and code not in seen and code.count('.') == 2:
+            results.append({"code": code, "desc": data.get("desc", ""), "kind": "account"})
+            seen.add(code)
+        if len(results) >= 8:
+            break
+
+    # 2. Account description keyword search
+    kw_results = lk.find_accounts_by_description(q)
+    for item in kw_results[:10]:
+        if item["code"] not in seen and item["code"].count('.') == 2:
+            results.append({"code": item["code"], "desc": item.get("desc", ""), "kind": "account"})
+            seen.add(item["code"])
+
+    # 3. Supplier name search (returns 50.xx codes)
+    sup_results = lk.search_suppliers_by_name(q, max_results=6)
+    for item in sup_results:
+        if item["code"] not in seen:
+            results.append({"code": item["code"], "desc": item.get("name", ""), "kind": "supplier"})
+            seen.add(item["code"])
+
+    return results[:12]
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}

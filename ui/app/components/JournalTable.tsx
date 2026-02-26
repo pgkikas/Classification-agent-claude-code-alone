@@ -1,5 +1,6 @@
 'use client'
 
+import AccountAutocomplete from './AccountAutocomplete'
 import { JournalEntry, JournalLine } from '../types'
 
 interface Props {
@@ -7,30 +8,78 @@ interface Props {
   onChange: (entries: JournalEntry[]) => void
 }
 
-function updateLine(
+// ── Immutable update helpers ──────────────────────────────────────────────────
+
+function patchLine(
   entries: JournalEntry[],
-  entryIdx: number,
-  lineIdx: number,
+  ei: number,
+  li: number,
   patch: Partial<JournalLine>
 ): JournalEntry[] {
-  return entries.map((entry, ei) => {
-    if (ei !== entryIdx) return entry
-    return {
+  return entries.map((entry, i) =>
+    i !== ei ? entry : {
       ...entry,
-      lines: entry.lines.map((line, li) =>
-        li === lineIdx ? { ...line, ...patch } : line
-      ),
+      lines: entry.lines.map((line, j) => j !== li ? line : { ...line, ...patch }),
     }
-  })
+  )
 }
+
+function addLine(entries: JournalEntry[], ei: number): JournalEntry[] {
+  return entries.map((entry, i) =>
+    i !== ei ? entry : {
+      ...entry,
+      lines: [...entry.lines, { side: 'DR' as const, account: '', description: '', amount: 0 }],
+    }
+  )
+}
+
+function removeLine(entries: JournalEntry[], ei: number, li: number): JournalEntry[] {
+  return entries.map((entry, i) =>
+    i !== ei ? entry : { ...entry, lines: entry.lines.filter((_, j) => j !== li) }
+  )
+}
+
+function addEntry(entries: JournalEntry[]): JournalEntry[] {
+  return [
+    ...entries,
+    {
+      entry: entries.length + 1,
+      description: '',
+      lines: [
+        { side: 'DR' as const, account: '', description: '', amount: 0 },
+        { side: 'CR' as const, account: '', description: '', amount: 0 },
+      ],
+    },
+  ]
+}
+
+function removeEntry(entries: JournalEntry[], ei: number): JournalEntry[] {
+  return entries
+    .filter((_, i) => i !== ei)
+    .map((e, i) => ({ ...e, entry: i + 1 }))
+}
+
+// ── Shared input style ────────────────────────────────────────────────────────
 
 const inputBase =
   'w-full border border-transparent rounded px-2 py-1 text-sm bg-transparent ' +
   'focus:outline-none focus:border-blue-300 focus:bg-white transition-colors'
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function JournalTable({ entries, onChange }: Props) {
   if (!entries || entries.length === 0) {
-    return <p className="text-sm text-gray-400 italic">No journal entries.</p>
+    return (
+      <div className="text-center py-6">
+        <p className="text-sm text-gray-400 italic mb-3">No journal entries.</p>
+        <button
+          onClick={() => onChange(addEntry([]))}
+          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+        >
+          + Add entry
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -46,17 +95,39 @@ export default function JournalTable({ entries, onChange }: Props) {
 
         return (
           <div key={ei} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
             {/* Entry header */}
             <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Entry {entry.entry}
-                {entry.description && (
-                  <span className="ml-2 font-normal normal-case text-gray-400">— {entry.description}</span>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider shrink-0">
+                  Entry {entry.entry}
+                </span>
+                <input
+                  type="text"
+                  value={entry.description}
+                  onChange={e => onChange(entries.map((en, i) =>
+                    i !== ei ? en : { ...en, description: e.target.value }
+                  ))}
+                  placeholder="Entry description…"
+                  className="flex-1 text-xs text-gray-500 bg-transparent border border-transparent rounded px-1 py-0.5 focus:outline-none focus:border-blue-300 focus:bg-white min-w-0"
+                />
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  balanced ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                  {balanced ? 'Balanced ✓' : `Δ ${Math.abs(drTotal - crTotal).toFixed(2)}`}
+                </span>
+                {entries.length > 1 && (
+                  <button
+                    onClick={() => onChange(removeEntry(entries, ei))}
+                    title="Delete this entry"
+                    className="text-gray-300 hover:text-red-500 text-sm font-bold leading-none transition-colors px-1"
+                  >
+                    ×
+                  </button>
                 )}
-              </span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${balanced ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                {balanced ? 'Balanced ✓' : `Imbalance: ${(drTotal - crTotal).toFixed(2)}`}
-              </span>
+              </div>
             </div>
 
             {/* Lines table */}
@@ -64,26 +135,25 @@ export default function JournalTable({ entries, onChange }: Props) {
               <thead>
                 <tr className="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
                   <th className="text-left px-4 py-2 w-20">Side</th>
-                  <th className="text-left px-4 py-2 w-44">Account</th>
+                  <th className="text-left px-4 py-2 w-48">Account</th>
                   <th className="text-left px-4 py-2">Description</th>
                   <th className="text-right px-4 py-2 w-28">Amount (€)</th>
+                  <th className="w-8" />
                 </tr>
               </thead>
               <tbody>
                 {entry.lines.map((line, li) => (
                   <tr
                     key={li}
-                    className={`border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors ${
-                      line.side === 'DR' ? '' : 'text-gray-500'
-                    }`}
+                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors group"
                   >
                     {/* Side */}
                     <td className="px-3 py-1.5">
                       <select
                         value={line.side}
-                        onChange={e =>
-                          onChange(updateLine(entries, ei, li, { side: e.target.value as 'DR' | 'CR' }))
-                        }
+                        onChange={e => onChange(patchLine(entries, ei, li, {
+                          side: e.target.value as 'DR' | 'CR',
+                        }))}
                         className={`border rounded px-2 py-0.5 text-xs font-bold cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-300 ${
                           line.side === 'DR'
                             ? 'bg-blue-50 text-blue-700 border-blue-200'
@@ -95,16 +165,17 @@ export default function JournalTable({ entries, onChange }: Props) {
                       </select>
                     </td>
 
-                    {/* Account */}
+                    {/* Account — with autocomplete */}
                     <td className="px-1 py-1">
-                      <input
-                        type="text"
+                      <AccountAutocomplete
                         value={line.account}
-                        onChange={e =>
-                          onChange(updateLine(entries, ei, li, { account: e.target.value }))
-                        }
+                        onSelect={(code, desc) => {
+                          const patch: Partial<JournalLine> = { account: code }
+                          // Always update description from lookup when selected from dropdown
+                          if (desc) patch.description = desc
+                          onChange(patchLine(entries, ei, li, patch))
+                        }}
                         className={`${inputBase} font-mono`}
-                        spellCheck={false}
                       />
                     </td>
 
@@ -113,9 +184,9 @@ export default function JournalTable({ entries, onChange }: Props) {
                       <input
                         type="text"
                         value={line.description}
-                        onChange={e =>
-                          onChange(updateLine(entries, ei, li, { description: e.target.value }))
-                        }
+                        onChange={e => onChange(patchLine(entries, ei, li, {
+                          description: e.target.value,
+                        }))}
                         className={inputBase}
                       />
                     </td>
@@ -127,19 +198,53 @@ export default function JournalTable({ entries, onChange }: Props) {
                         step="0.01"
                         min="0"
                         value={line.amount}
-                        onChange={e =>
-                          onChange(updateLine(entries, ei, li, { amount: parseFloat(e.target.value) || 0 }))
-                        }
+                        onChange={e => onChange(patchLine(entries, ei, li, {
+                          amount: parseFloat(e.target.value) || 0,
+                        }))}
                         className={`${inputBase} text-right font-mono`}
                       />
+                    </td>
+
+                    {/* Delete line — visible on row hover */}
+                    <td className="pr-2 text-center">
+                      <button
+                        onClick={() => {
+                          if (entry.lines.length > 1) onChange(removeLine(entries, ei, li))
+                        }}
+                        disabled={entry.lines.length <= 1}
+                        title="Delete line"
+                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 disabled:opacity-0 text-base font-bold leading-none transition-all"
+                      >
+                        ×
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            {/* Add line footer */}
+            <div className="px-4 py-2 border-t border-gray-50">
+              <button
+                onClick={() => onChange(addLine(entries, ei))}
+                className="text-xs text-blue-500 hover:text-blue-700 font-medium transition-colors"
+              >
+                + Add line
+              </button>
+            </div>
           </div>
         )
       })}
+
+      {/* Add entry */}
+      <div className="flex justify-center pt-1">
+        <button
+          onClick={() => onChange(addEntry(entries))}
+          className="text-xs text-gray-400 hover:text-blue-600 font-medium border border-dashed border-gray-300 hover:border-blue-400 rounded-lg px-4 py-2 transition-colors"
+        >
+          + Add entry
+        </button>
+      </div>
     </div>
   )
 }
