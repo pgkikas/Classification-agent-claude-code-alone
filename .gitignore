@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Runtime outputs (not source)
+logs/
+output/
+
+# Node / Next.js
+ui/node_modules/
+ui/.next/
+ui/.env.local
+ui/.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
