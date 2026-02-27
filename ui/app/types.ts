@@ -33,6 +33,19 @@ export interface JournalEntry {
   lines: JournalLine[]
 }
 
+export interface AgentToolCall {
+  name: string
+  args: Record<string, any>
+  result: string
+}
+
+export interface AgentLogStep {
+  step: number
+  reasoning: string | null
+  tool_calls: AgentToolCall[]
+  tokens: { prompt: number; completion: number; total: number }
+}
+
 export interface ClassificationResult {
   document_file: string
   document_type: 'invoice' | 'bank_payment' | 'receipt'
@@ -44,4 +57,5 @@ export interface ClassificationResult {
   reasoning: string
   confidence: 'high' | 'medium' | 'low'
   flags: string[]
+  agent_log?: AgentLogStep[]
 }

@@ -488,6 +488,7 @@ def classify(pdf_path: str) -> dict:
     log.info("Starting agent loop")
     tool_call_count = 0
     gpt_call_count  = 0
+    agent_log = []  # structured trace of every step
 
     while True:
         gpt_call_count += 1
@@ -508,9 +509,16 @@ def classify(pdf_path: str) -> dict:
             f"tokens: prompt={usage.prompt_tokens}  completion={usage.completion_tokens}  total={usage.total_tokens}"
         )
 
+        # Capture any text reasoning the model produced this turn
+        reasoning_text = (choice.message.content or "").strip()
+        if reasoning_text:
+            log.info(f"  LLM reasoning:\n{reasoning_text[:500]}{'...' if len(reasoning_text) > 500 else ''}")
+
         # Handle tool calls
         if choice.finish_reason == "tool_calls":
             messages.append(choice.message)
+
+            step_tools = []
             for tc in choice.message.tool_calls:
                 tool_call_count += 1
                 log.info(f"--- Tool call {tool_call_count}: {tc.function.name} ---")
@@ -521,9 +529,45 @@ def classify(pdf_path: str) -> dict:
                     "content": result,
                     "tool_call_id": tc.id
                 })
+                # Summarise result for the log (truncate long lists)
+                try:
+                    parsed = json.loads(result)
+                    if isinstance(parsed, list) and len(parsed) > 3:
+                        result_summary = json.dumps(parsed[:3], ensure_ascii=False) + f" ... ({len(parsed)} total)"
+                    else:
+                        result_summary = result if len(result) <= 300 else result[:300] + "..."
+                except Exception:
+                    result_summary = result[:300] if len(result) > 300 else result
+
+                step_tools.append({
+                    "name": tc.function.name,
+                    "args": args,
+                    "result": result_summary,
+                })
+
+            agent_log.append({
+                "step": gpt_call_count,
+                "reasoning": reasoning_text or None,
+                "tool_calls": step_tools,
+                "tokens": {
+                    "prompt": usage.prompt_tokens,
+                    "completion": usage.completion_tokens,
+                    "total": usage.total_tokens,
+                },
+            })
         else:
             # Final answer
             raw = choice.message.content.strip()
+            agent_log.append({
+                "step": gpt_call_count,
+                "reasoning": "Final JSON output produced.",
+                "tool_calls": [],
+                "tokens": {
+                    "prompt": usage.prompt_tokens,
+                    "completion": usage.completion_tokens,
+                    "total": usage.total_tokens,
+                },
+            })
             log.info(f"Agent finished  |  {gpt_call_count} GPT call(s), {tool_call_count} tool call(s)")
             break
 
@@ -538,6 +582,9 @@ def classify(pdf_path: str) -> dict:
         result = json.loads(raw.strip())
     except json.JSONDecodeError:
         result = {"raw_output": raw, "parse_error": "Could not parse JSON"}
+
+    # Attach the agent trace so the UI can display it
+    result["agent_log"] = agent_log
 
     return result
 

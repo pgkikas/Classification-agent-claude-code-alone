@@ -4,9 +4,11 @@ import { useState, useCallback } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000'
 import FileUpload from './components/FileUpload'
+import HistoryPanel from './components/HistoryPanel'
 import ResultHeader from './components/ResultHeader'
 import JournalTable from './components/JournalTable'
 import ReasoningPanel from './components/ReasoningPanel'
+import AgentLogPanel from './components/AgentLogPanel'
 import { ClassificationResult, JournalEntry } from './types'
 
 type PageState = 'idle' | 'classifying' | 'result' | 'saving' | 'saved'
@@ -16,6 +18,7 @@ export default function Home() {
   const [result, setResult] = useState<ClassificationResult | null>(null)
   const [savedPath, setSavedPath] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [historyKey, setHistoryKey] = useState(0)
 
   // ── Classify ──────────────────────────────────────────────────────────────
 
@@ -75,6 +78,7 @@ export default function Home() {
       const data = await res.json()
       setSavedPath(data.path)
       setPageState('saved')
+      setHistoryKey(k => k + 1)
 
       // Auto-reset to idle after 3s
       setTimeout(() => {
@@ -87,6 +91,21 @@ export default function Home() {
       setPageState('result')
     }
   }, [result])
+
+  // ── Load from history ────────────────────────────────────────────────────
+
+  const handleLoadHistory = useCallback(async (filename: string) => {
+    setError(null)
+    try {
+      const res = await fetch(`${API}/api/history/${filename}`)
+      if (!res.ok) throw new Error(`Failed to load ${filename}`)
+      const data: ClassificationResult = await res.json()
+      setResult(data)
+      setPageState('result')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
 
   // ── Reset ─────────────────────────────────────────────────────────────────
 
@@ -125,13 +144,20 @@ export default function Home() {
 
       {/* Upload (always visible when idle/classifying, or as reset option) */}
       {(pageState === 'idle' || pageState === 'classifying') && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
-          <FileUpload
-            onClassify={handleClassify}
-            loading={pageState === 'classifying'}
-            error={error}
-          />
-        </div>
+        <>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+            <FileUpload
+              onClassify={handleClassify}
+              loading={pageState === 'classifying'}
+              error={error}
+            />
+          </div>
+
+          {/* History — saved classifications */}
+          <div className="mt-6">
+            <HistoryPanel refreshKey={historyKey} onLoad={handleLoadHistory} />
+          </div>
+        </>
       )}
 
       {/* Results */}
@@ -168,6 +194,9 @@ export default function Home() {
 
           {/* Reasoning */}
           <ReasoningPanel reasoning={result.reasoning} />
+
+          {/* Agent trace */}
+          {result.agent_log && <AgentLogPanel log={result.agent_log} />}
 
           {/* Confirm button */}
           {(pageState === 'result' || pageState === 'saving') && (
