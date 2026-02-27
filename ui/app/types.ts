@@ -1,3 +1,18 @@
+export type LineItemCategory =
+  | 'food' | 'cleaning' | 'fuel' | 'office' | 'repair' | 'vehicle' | 'telecom' | 'other'
+
+export interface LineItem {
+  description: string
+  quantity: number
+  unit: string
+  unit_price: number
+  net_value: number
+  vat_rate: number
+  vat_amount: number
+  gross_value: number
+  category: LineItemCategory | string
+}
+
 export interface SupplierInfo {
   name: string
   afm: string
@@ -9,6 +24,7 @@ export interface JournalLine {
   account: string
   description: string
   amount: number
+  items?: LineItem[]   // populated on DR expense lines; empty/absent on VAT and CR lines
 }
 
 export interface JournalEntry {

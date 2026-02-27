@@ -1,0 +1,44 @@
+{
+  "_note": "TC3: Telecom invoice. NOVA ΤΗΛΕΠΙΚΟΙΝΩΝΙΕΣ (AFM 094444827) for ΜΑΡΟΥΣΙ branch. 2 items @24%.",
+  "_difficulty": "easy",
+  "document_type": "invoice",
+  "supplier": {
+    "name": "NOVA ΤΗΛΕΠΙΚΟΙΝΩΝΙΕΣ ΜΟΝΟΠΡΟΣΩΠΗ ΑΕ",
+    "afm": "094444827",
+    "code": "50.00.00213"
+  },
+  "branch": "ΜΑΡΟΥΣΙ",
+  "total_amount": 54.00,
+  "journal_entries": [
+    {
+      "entry": 1,
+      "lines": [
+        {
+          "side": "DR",
+          "account": "62.03.00224",
+          "account_desc": "ΤΗΛΕΦΩΝΙΚΑ ΑΜΑΡΟΥΣΙΟΥ 24%",
+          "amount": 43.55
+        },
+        {
+          "side": "DR",
+          "account": "54.00.62024",
+          "account_desc": "ΦΠΑ ΠΑΡΟΧΩΝ 24%",
+          "amount": 10.45
+        },
+        {
+          "side": "CR",
+          "account": "50.00.00213",
+          "account_desc": "NOVA ΤΗΛΕΠΙΚΟΙΝΩΝΙΕΣ",
+          "amount": 54.00
+        }
+      ]
+    }
+  ],
+  "_checks": {
+    "entry_1_balanced": "43.55 + 10.45 = 54.00 ✓",
+    "expense_subgroup": "62.03 for all telecom/internet services",
+    "vat_routing": "62.xx expense → 54.00.62024 ✓",
+    "item_count": 2,
+    "items_net_sum": "27.42 + 16.13 = 43.55 ✓"
+  }
+}

@@ -227,9 +227,20 @@ DR 50.00.03139  ΤΡΑΠΕΖΑ ΠΕΙΡΑΙΩΣ Α.Ε.    0.60
 CR 38.03.00009  ΠΕΙΡΑΙΩΣ ΟΨΕΩΣ           0.60
 ```
 
-### E5: ΜΕΤΡΟ — Mixed canteen + cleaning, ΚΕΝΤΡΙΚΟ
+### E5: ΜΕΤΡΟ — Mixed canteen + cleaning, ΚΕΝΤΡΙΚΟ (total 140.63 €)
+
+The invoice VAT summary shows: 13%: 90.95 net | 24%: **28.24 net** | 6%: 2.68 net
+⚠ The 24% row is COMBINED (food@24% = 7.24 + cleaning@24% = 21.00). Must split by item.
+
+How to split: read each product line, categorise (food vs cleaning), then SUM per (category, rate):
+- food@13%: coffee, milk, water, sugar, beverages            → net 90.95
+- food@24%: non-stick paper, espresso base, shopping bags    → net  7.24
+- cleaning@6%: shower gel / hygiene                          → net  2.68
+- cleaning@24%: bakery paper rolls, clothespins, detergent   → net 21.00
+
+**ONE single entry — confirmed from ground-truth Excel:**
 ```
-CR 50.00.02732  ΜΕΤΡΟ Α.Ε.             140.63
+CR 50.00.02732  ΜΕΤΡΟ Α.Ε.             140.63   ← single CR, full invoice total
 DR 60.02.00000  ΚΥΛΙΚΕΙΟ ΚΕΝΤΡΙΚΟ       90.95   ← food net @13%
 DR 63.98.00813  NON-DEDUCT VAT 13%      11.82   ← food VAT (non-deductible!)
 DR 60.02.00000  ΚΥΛΙΚΕΙΟ ΚΕΝΤΡΙΚΟ        7.24   ← food net @24%
@@ -239,6 +250,8 @@ DR 54.00.64006  ΦΠΑ ΔΙΑΦ.ΕΞΟΔΩΝ 6%      0.16   ← cleaning VAT (de
 DR 64.08.00024  ΥΛΙΚΑ ΚΑΘΑΡ. ΚΕΝΤΡ. 24% 21.00  ← cleaning @24%
 DR 54.00.64024  ΦΠΑ ΔΙΑΦ.ΕΞΟΔΩΝ 24%     5.04   ← cleaning VAT (deductible)
 ```
+Total DR = 140.63 = CR ✓
+⚠ ONE entry, ONE CR line for the full supplier total — even when categories mix.
 
 ---
 

@@ -1,0 +1,44 @@
+{
+  "_note": "TC2: Vehicle repair. ICAR PRODUCTS (AFM 802204319) servicing at Α/Δ ΜΥΚΟΝΟΥ. 3 items all @24%.",
+  "_difficulty": "easy",
+  "document_type": "invoice",
+  "supplier": {
+    "name": "ICAR PRODUCTS ΜΟΝΟΠΡΟΣΩΠΗ Ι.Κ.Ε.",
+    "afm": "802204319",
+    "code": "50.00.05314"
+  },
+  "branch": "ΜΥΚΟΝΟΣ",
+  "total_amount": 105.00,
+  "journal_entries": [
+    {
+      "entry": 1,
+      "lines": [
+        {
+          "side": "DR",
+          "account": "62.07.30424",
+          "account_desc": "ΕΠΙΣΚ.ΜΕΤ.ΜΕΣΩΝ Α/Δ ΜΥΚΟΝΟΥ 24%",
+          "amount": 84.68
+        },
+        {
+          "side": "DR",
+          "account": "54.00.62024",
+          "account_desc": "ΦΠΑ ΠΑΡΟΧΩΝ 24%",
+          "amount": 20.32
+        },
+        {
+          "side": "CR",
+          "account": "50.00.05314",
+          "account_desc": "ICAR PRODUCTS",
+          "amount": 105.00
+        }
+      ]
+    }
+  ],
+  "_checks": {
+    "entry_1_balanced": "84.68 + 20.32 = 105.00 ✓",
+    "expense_subgroup": "62.07 (vehicle repairs, 30xxx series for vehicles, not 10xxx buildings)",
+    "vat_routing": "62.xx expense → 54.00.62024 ✓",
+    "item_count": 3,
+    "items_net_sum": "68.55 + 9.68 + 6.45 = 84.68 ✓"
+  }
+}

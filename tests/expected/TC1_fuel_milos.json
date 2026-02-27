@@ -1,0 +1,42 @@
+{
+  "_note": "TC1: Simple fuel receipt. ΞΥΔΟΥΣ (AFM 998455605) at ΑΔΑΜΑΝΤΑΣ ΜΗΛΟΣ. Single item, single VAT rate.",
+  "_difficulty": "easy",
+  "document_type": "invoice",
+  "supplier": {
+    "name": "ΞΥΔΟΥΣ ΑΝΔΡΕΑΣ ΚΑΙ ΣΙΑ ΕΤΕΡΟΡΡΥΘΜΗ ΕΤΑΙΡΕΙΑ",
+    "afm": "998455605",
+    "code": "50.00.04200"
+  },
+  "branch": "ΑΔΑΜΑΝΤΑΣ",
+  "total_amount": 70.56,
+  "journal_entries": [
+    {
+      "entry": 1,
+      "lines": [
+        {
+          "side": "DR",
+          "account": "64.00.23024",
+          "account_desc": "ΕΞΟΔΑ ΚΙΝΗΣΗΣ-ΚΑΥΣΙΜΑ ΑΔΑΜΑΝΤ.ΜΗΛΟΣ 24%",
+          "amount": 56.90
+        },
+        {
+          "side": "DR",
+          "account": "54.00.64024",
+          "account_desc": "ΦΠΑ ΔΙΑΦ.ΕΞΟΔΩΝ 24%",
+          "amount": 13.66
+        },
+        {
+          "side": "CR",
+          "account": "50.00.04200",
+          "account_desc": "ΞΥΔΟΥΣ",
+          "amount": 70.56
+        }
+      ]
+    }
+  ],
+  "_checks": {
+    "entry_1_balanced": "56.90 + 13.66 = 70.56 ✓",
+    "vat_routing": "64.xx expense → 54.00.64024 ✓",
+    "item_count": 1
+  }
+}

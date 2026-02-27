@@ -293,16 +293,47 @@ Your job is to read a document image and produce the correct accounting journal 
 
 STEP 1: Read the document carefully.
   - Identify: document type (invoice/ΤΠΥ/ΤΔΑ, bank payment confirmation, receipt/απόδειξη)
-  - Extract: supplier name, ΑΦΜ, date, amounts, VAT breakdown, branch/location clues
+  - Extract: supplier name, ΑΦΜ, date, branch/location clues
+  - Number and list EVERY individual line item visible on the invoice body (1, 2, 3...):
+    description, quantity, unit, unit price, net value, VAT rate %, VAT amount, gross value.
+    After listing, state explicitly: "I found N line items in total."
+  ⚠ WARNING — VAT SUMMARY TABLE TRAP:
+    Invoices print a VAT summary at the bottom (e.g. "Σύνολο 13%: 90.95 | 24%: 28.24 | 6%: 2.68").
+    These totals are COMBINED across ALL expense categories.
+    A single VAT rate row (e.g. 24%) can contain BOTH food items AND cleaning items.
+    NEVER use a VAT summary row amount as a DR line amount — amounts MUST be derived by summing items.
 
 STEP 2: Identify the supplier.
   - If you can read an ΑΦΜ → call lookup_supplier_by_afm first (most reliable)
   - If ΑΦΜ is unclear → call search_supplier_by_name
   - Get the supplier's 50.xx ledger code
 
-STEP 3: Identify the expense category.
-  - Use the keywords in the CLASSIFICATION DECISION TREE above
-  - Determine the account subgroup (e.g. 62.07, 64.00, 63.03)
+STEP 3: Categorise each line item and compute per-category amounts.
+  - For EACH item from the list in STEP 1, assign a category:
+      food/canteen → 60.02  (coffee, water, dairy, beverages, sugar, honey,
+                              kitchen consumables: non-stick/baking paper, espresso equipment,
+                              shopping bags purchased alongside food items,
+                              any item whose primary use is in food preparation or serving)
+      cleaning     → 64.08  (detergents, disinfectants, hygiene products, clothespins,
+                              industrial paper rolls for cleaning surfaces or wrapping in service,
+                              mops/cloths/gloves and other pure cleaning consumables)
+      ⚠ BORDERLINE ITEMS: if an item could be either canteen or cleaning, look at the invoice
+        context. If the invoice is from a food/catering supplier and the item accompanies food
+        products, assign it to food/canteen (60.02). If it is a standalone cleaning product or
+        the invoice is from a cleaning supplier, assign it to cleaning (64.08).
+      fuel         → 64.00  |  repairs → 62.07  |  telecom → 62.03  |  other → 64.98
+  - Group items by (category, VAT rate) and SUM their net_values.
+    These sums become the DR expense line amounts — derived from items, NOT from the VAT summary table.
+    All groups go into ONE single journal entry (see JOURNAL ENTRY STRUCTURE RULES):
+      category A @VAT1 net = Σ(items in cat A with VAT1) → DR <account A>  /  VAT → <VAT account>
+      category A @VAT2 net = Σ(items in cat A with VAT2) → DR <account A>  /  VAT → <VAT account>
+      category B @VAT1 net = Σ(items in cat B with VAT1) → DR <account B>  /  VAT → <VAT account>
+      CR supplier = FULL invoice gross total  ← ONE single CR for the entire invoice
+  ⚠ ITEMS ARE THE SOURCE OF TRUTH FOR AMOUNTS:
+    DR line amount = sum of its items' net_values. If your sum disagrees with the VAT summary,
+    trust your item sum — the summary combines categories. If they agree, great.
+  - Verify: total items across all groups = N from Step 1. If count is off, you skipped items.
+  - Verify: Σ(all category nets + VATs) = invoice total. If not, re-read items.
 
 STEP 4: Find the exact account code.
   - Call find_best_account(subgroup, branch, vat_rate)
@@ -313,18 +344,26 @@ STEP 5: Determine the VAT account.
   - Call get_vat_account(expense_subgroup, vat_rate)
   - CRITICAL: food/canteen → is_food=true → routes to 63.98 (NON-DEDUCTIBLE)
 
-STEP 6: Build the journal entry.
-  - INVOICE:     DR expense + DR VAT account  /  CR supplier (50.xx)
+STEP 6: Build the journal entries.
+  - ONE ENTRY per invoice per supplier — even if the invoice spans multiple expense categories or VAT rates.
+    Within the single entry:
+      • DR expense line for each (category × VAT rate) group (from STEP 3)
+      • DR VAT line for each group (from STEP 5)
+      • ONE single CR to the supplier for the FULL invoice gross total
   - BANK PAYMENT (state/tax): DR expense  /  CR bank 38.03.00009
   - BANK PAYMENT (to supplier): DR supplier 50.xx  /  CR bank 38.03.00009
-  - One document can require multiple journal entries (e.g. transfer fee + bank charge)
+  - Exception: use multiple entries ONLY when there are genuinely distinct payees in the same
+    document (e.g. a bank statement that charges both a state tax and a bank service fee as
+    separate line items to different accounts — those are separate entries because the CR targets differ).
+  - Verify the entire entry: Σ all DR lines = Σ all CR lines
 
 ---
 
 ## STRICT RULES:
 - ALWAYS use tools to look up codes. NEVER invent or guess account codes.
 - NEVER use DOCUMENT_LOG or any cheat sheet — derive everything from the rulebook and tools.
-- Always verify: debit total must equal credit total.
+- Always verify: debit total must equal credit total per entry.
+- NEVER copy a VAT summary row amount directly into a DR line — always derive from categorized items.
 
 ---
 
@@ -343,8 +382,27 @@ After completing all tool calls, output ONLY valid JSON in exactly this structur
       "entry": 1,
       "description": "<brief description>",
       "lines": [
-        {{"side": "DR", "account": "<code>", "description": "<desc>", "amount": 0.00}},
-        {{"side": "CR", "account": "<code>", "description": "<desc>", "amount": 0.00}}
+        {{
+          "side": "DR",
+          "account": "<expense account code>",
+          "description": "<desc>",
+          "amount": 0.00,
+          "items": [
+            {{
+              "description": "<exact item description from the invoice>",
+              "quantity": 0.00,
+              "unit": "<τεμ|kg|lt — blank if not stated>",
+              "unit_price": 0.00,
+              "net_value": 0.00,
+              "vat_rate": 0,
+              "vat_amount": 0.00,
+              "gross_value": 0.00,
+              "category": "<food|cleaning|fuel|office|repair|vehicle|telecom|other>"
+            }}
+          ]
+        }},
+        {{"side": "DR", "account": "<VAT account 54.xx or 63.98>", "description": "<desc>", "amount": 0.00, "items": []}},
+        {{"side": "CR", "account": "<supplier or bank>",           "description": "<desc>", "amount": 0.00, "items": []}}
       ]
     }}
   ],
@@ -352,6 +410,44 @@ After completing all tool calls, output ONLY valid JSON in exactly this structur
   "confidence": "high|medium|low",
   "flags": ["<any uncertainties or items needing accountant review>"]
 }}
+
+## JOURNAL ENTRY STRUCTURE RULES:
+
+1. ONE entry per invoice per supplier — regardless of how many expense categories or VAT rates appear.
+   Within that single entry:
+   - Separate DR expense lines for each (category × VAT rate) combination.
+   - Separate DR VAT lines for each (category × VAT rate) combination.
+   - ONE single CR line to the supplier = the FULL gross total of the entire invoice.
+   Exception: multiple entries only when the document contains genuinely distinct payees
+   (e.g. a bank-issued document that separately charges a state tax and a bank service fee
+   → two entries because the DR accounts and purpose are categorically different).
+
+2. ⚠ NEVER split the CR by category or VAT rate:
+   CR 50.00.xxxxx  <supplier>  <full invoice gross>   ← single CR, always the full total
+   DR ...  category A @ VAT rate 1
+   DR ...  VAT on category A
+   DR ...  category B @ VAT rate 2
+   DR ...  VAT on category B
+   All DR lines together must equal the one CR line. That is your balance check.
+
+## ITEMS ARRAY RULES — items are nested inside each DR EXPENSE line:
+
+- Each DR expense line (60.xx, 62.xx, 63.98, 64.xx, 65.xx) has an "items" array containing
+  the individual invoice product lines that make up that line's amount.
+- VAT lines (54.00.xx) and CR lines (50.xx, 38.xx) always have items: [].
+- One DR expense line per (category × VAT rate), so all items in a line share the same VAT rate.
+- COMPLETENESS: Every product line from the invoice body MUST appear in exactly one items[] array.
+  If the invoice has 13 food@13% items, the DR 60.02 @13% line must contain all 13 — not a sample.
+  Do NOT summarise, group, or omit items. One invoice line = one items[] entry.
+- AMOUNTS COME FROM ITEMS, NOT THE SUMMARY TABLE:
+  The DR line amount field = sum(items[].net_value). Set the amount AFTER you have listed all items.
+  Never set the amount first and then list partial items to justify it.
+- For bank payments and documents with no itemised list, all lines have items: [].
+- Category values: food (groceries/beverages/canteen), cleaning (hygiene/cleaning products),
+  fuel (petrol/diesel/LPG), office (stationery/printing), repair (maintenance/parts),
+  vehicle (tyres/insurance/road tax), telecom (phone/internet), other (anything else).
+- FINAL CHECK: Count total items in your JSON output. Must equal N from Step 1.
+  If count is lower, you omitted items — go back and add them before finishing.
 """
 
 # ── Agent loop ────────────────────────────────────────────────────────────────

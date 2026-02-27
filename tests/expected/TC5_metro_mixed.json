@@ -1,0 +1,105 @@
+{
+  "_note": "TC5: METRO mixed food+cleaning. 9 items interleaved. 3 VAT rates. The @24% VAT row on the invoice is COMBINED (food@24% + cleaning@24% = 18.39 net combined). Agent must split by per-item category. Hard case.",
+  "_difficulty": "hard",
+  "document_type": "invoice",
+  "supplier": {
+    "name": "ΜΕΤΡΟ ΑΕΒΕ",
+    "afm": "094062259",
+    "code": "50.00.02732"
+  },
+  "branch": "ΚΕΝΤΡΙΚΟ",
+  "total_amount": 48.37,
+  "journal_entries": [
+    {
+      "entry": 1,
+      "_desc": "Τρόφιμα κυλικείου ΜΕΤΡΟ",
+      "lines": [
+        {
+          "side": "DR",
+          "account": "60.02.00000",
+          "account_desc": "ΚΥΛΙΚΕΙΟ ΚΕΝΤΡΙΚΟ",
+          "amount": 19.10,
+          "_note": "food@13% net: JACOBS 9.73 + ΓΑΛΑ 3.54 + ΝΕΡΟ 3.18 + ΖΑΧΑΡΗ 2.65 = 19.10"
+        },
+        {
+          "side": "DR",
+          "account": "63.98.00813",
+          "account_desc": "ΦΠΑ ΜΗ ΕΚΠΙΠΤ. 13%",
+          "amount": 2.47
+        },
+        {
+          "side": "DR",
+          "account": "60.02.00000",
+          "account_desc": "ΚΥΛΙΚΕΙΟ ΚΕΝΤΡΙΚΟ",
+          "amount": 8.87,
+          "_note": "food@24% net: ΘΗΚΗ ΚΑΦΕ 4.84 + ΧΑΡΤΙΝΕΣ ΣΑΚΟΥΛΕΣ 4.03 = 8.87"
+        },
+        {
+          "side": "DR",
+          "account": "63.98.00824",
+          "account_desc": "ΦΠΑ ΜΗ ΕΚΠΙΠΤ. 24%",
+          "amount": 2.13
+        },
+        {
+          "side": "CR",
+          "account": "50.00.02732",
+          "account_desc": "ΜΕΤΡΟ Α.Ε.",
+          "amount": 32.57,
+          "_note": "food gross only: 10.99+4.00+3.59+2.99+6.00+5.00 = 32.57"
+        }
+      ]
+    },
+    {
+      "entry": 2,
+      "_desc": "Υλικά καθαριότητας ΜΕΤΡΟ",
+      "lines": [
+        {
+          "side": "DR",
+          "account": "64.08.00006",
+          "account_desc": "ΥΛΙΚΑ ΚΑΘΑΡΙΟΤΗΤΑΣ ΚΕΝΤΡΙΚΟΥ 6%",
+          "amount": 3.77,
+          "_note": "cleaning@6%: FAIRY DISHES 3.77"
+        },
+        {
+          "side": "DR",
+          "account": "54.00.64006",
+          "account_desc": "ΦΠΑ ΔΙΑΦ.ΕΞΟΔΩΝ 6%",
+          "amount": 0.23,
+          "_note": "cleaning VAT → 54.00 (DEDUCTIBLE)"
+        },
+        {
+          "side": "DR",
+          "account": "64.08.00024",
+          "account_desc": "ΥΛΙΚΑ ΚΑΘΑΡΙΟΤΗΤΑΣ ΚΕΝΤΡΙΚΟΥ 24%",
+          "amount": 9.52,
+          "_note": "cleaning@24%: ΧΛΩΡΙΝΗ 3.87 + ARIEL 5.65 = 9.52"
+        },
+        {
+          "side": "DR",
+          "account": "54.00.64024",
+          "account_desc": "ΦΠΑ ΔΙΑΦ.ΕΞΟΔΩΝ 24%",
+          "amount": 2.28,
+          "_note": "cleaning VAT → 54.00 (DEDUCTIBLE)"
+        },
+        {
+          "side": "CR",
+          "account": "50.00.02732",
+          "account_desc": "ΜΕΤΡΟ Α.Ε.",
+          "amount": 15.80,
+          "_note": "cleaning gross only: 4.00+4.80+7.00 = 15.80"
+        }
+      ]
+    }
+  ],
+  "_checks": {
+    "entry_1_balanced": "19.10 + 2.47 + 8.87 + 2.13 = 32.57 ✓",
+    "entry_2_balanced": "3.77 + 0.23 + 9.52 + 2.28 = 15.80 ✓",
+    "grand_total": "32.57 + 15.80 = 48.37 ✓",
+    "vat_summary_trap": "Invoice shows @24% combined net = 18.39 (8.87 food + 9.52 cleaning). Agent MUST split by item, not copy this row.",
+    "food_vat_routing": "60.02 → 63.98 (non-deductible)",
+    "cleaning_vat_routing": "64.08 → 54.00 (deductible)",
+    "item_count": 9,
+    "food_items": ["JACOBS @13%=9.73", "ΓΑΛΑ ΠΛΑΚΑ @13%=3.54", "ΝΕΡΟ ΖΑΓΟΡΙ @13%=3.18", "ΖΑΧΑΡΗ ΦΑΚΕΛΑΚΙΑ @13%=2.65", "ΘΗΚΗ ΚΑΦΕ @24%=4.84", "ΧΑΡΤΙΝΕΣ ΣΑΚΟΥΛΕΣ @24%=4.03"],
+    "cleaning_items": ["FAIRY DISHES @6%=3.77", "ΧΛΩΡΙΝΗ @24%=3.87", "ARIEL @24%=5.65"]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "_note": "TC4: METRO food-only invoice. All items are canteen/food (60.02). Two VAT rates: 13% and 24%. Tests non-deductible VAT path (63.98) and two DR expense lines in one entry.",
+  "_difficulty": "medium",
+  "document_type": "invoice",
+  "supplier": {
+    "name": "ΜΕΤΡΟ ΑΕΒΕ",
+    "afm": "094062259",
+    "code": "50.00.02732"
+  },
+  "branch": "ΚΕΝΤΡΙΚΟ",
+  "total_amount": 28.63,
+  "journal_entries": [
+    {
+      "entry": 1,
+      "_desc": "Τρόφιμα κυλικείου ΜΕΤΡΟ",
+      "lines": [
+        {
+          "side": "DR",
+          "account": "60.02.00000",
+          "account_desc": "ΚΥΛΙΚΕΙΟ ΚΕΝΤΡΙΚΟ",
+          "amount": 15.25,
+          "_note": "food@13% net: ΓΑΛΑ 3.93 + ΧΥΜΟΣ 5.96 + ΖΑΧΑΡΗ 1.60 + ΝΕΡΟ 3.76 = 15.25"
+        },
+        {
+          "side": "DR",
+          "account": "63.98.00813",
+          "account_desc": "ΦΠΑ ΜΗ ΕΚΠΙΠΤ. 13%",
+          "amount": 1.98,
+          "_note": "NON-DEDUCTIBLE VAT — food goes to 63.98, NOT 54.00"
+        },
+        {
+          "side": "DR",
+          "account": "60.02.00000",
+          "account_desc": "ΚΥΛΙΚΕΙΟ ΚΕΝΤΡΙΚΟ",
+          "amount": 9.19,
+          "_note": "food@24% net: ΝΕΣΚΑΦΕ 5.64 + ΧΑΡΤΟΠΕΤΣΕΤΕΣ 3.55 = 9.19"
+        },
+        {
+          "side": "DR",
+          "account": "63.98.00824",
+          "account_desc": "ΦΠΑ ΜΗ ΕΚΠΙΠΤ. 24%",
+          "amount": 2.21,
+          "_note": "NON-DEDUCTIBLE VAT — food goes to 63.98, NOT 54.00"
+        },
+        {
+          "side": "CR",
+          "account": "50.00.02732",
+          "account_desc": "ΜΕΤΡΟ Α.Ε.",
+          "amount": 28.63,
+          "_note": "All food items gross: 4.44+7.00+6.73+1.81+4.40+4.25 = 28.63"
+        }
+      ]
+    }
+  ],
+  "_checks": {
+    "entry_1_balanced": "15.25 + 1.98 + 9.19 + 2.21 = 28.63 ✓",
+    "critical_rule": "60.02 food VAT → 63.98 (NON-DEDUCTIBLE), NOT 54.00",
+    "item_count": 6,
+    "food_at_13pct": ["ΓΑΛΑ ΦΡΕΣΚΟ x3 = 3.93", "ΧΥΜΟΣ ΠΟΡΤΟΚΑΛΙ x4 = 5.96", "ΖΑΧΑΡΗ ΛΕΥΚΗ x2 = 1.60", "ΝΕΡΟ ΑΘΗΝΑΪΚΟ x6 = 3.76"],
+    "food_at_24pct": ["ΝΕΣΚΑΦΕ x2 = 5.64", "ΧΑΡΤΟΠΕΤΣΕΤΕΣ x3 = 3.55"]
+  }
+}
