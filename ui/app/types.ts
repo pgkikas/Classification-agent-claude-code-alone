@@ -46,6 +46,12 @@ export interface AgentLogStep {
   tokens: { prompt: number; completion: number; total: number }
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  proposed_update?: ClassificationResult | null
+}
+
 export interface ClassificationResult {
   document_file: string
   document_type: 'invoice' | 'bank_payment' | 'receipt'

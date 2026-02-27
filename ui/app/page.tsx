@@ -9,7 +9,8 @@ import ResultHeader from './components/ResultHeader'
 import JournalTable from './components/JournalTable'
 import ReasoningPanel from './components/ReasoningPanel'
 import AgentLogPanel from './components/AgentLogPanel'
-import { ClassificationResult, JournalEntry } from './types'
+import ChatPanel from './components/ChatPanel'
+import { ClassificationResult, JournalEntry, ChatMessage } from './types'
 
 type PageState = 'idle' | 'classifying' | 'result' | 'saving' | 'saved'
 
@@ -19,6 +20,7 @@ export default function Home() {
   const [savedPath, setSavedPath] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [historyKey, setHistoryKey] = useState(0)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
 
   // ── Classify ──────────────────────────────────────────────────────────────
 
@@ -44,6 +46,7 @@ export default function Home() {
 
       const data: ClassificationResult = await res.json()
       setResult(data)
+      setChatMessages([])
       setPageState('result')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
@@ -101,10 +104,18 @@ export default function Home() {
       if (!res.ok) throw new Error(`Failed to load ${filename}`)
       const data: ClassificationResult = await res.json()
       setResult(data)
+      setChatMessages([])
       setPageState('result')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
     }
+  }, [])
+
+  // ── Apply chat-proposed update ───────────────────────────────────────────
+
+  const handleApplyUpdate = useCallback((update: ClassificationResult) => {
+    // Preserve agent_log from the original (not included in chat proposals)
+    setResult(prev => prev ? { ...update, agent_log: prev.agent_log } : update)
   }, [])
 
   // ── Reset ─────────────────────────────────────────────────────────────────
@@ -114,12 +125,15 @@ export default function Home() {
     setResult(null)
     setError(null)
     setSavedPath(null)
+    setChatMessages([])
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  const showingResult = !!(result && (pageState === 'result' || pageState === 'saving' || pageState === 'saved'))
+
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
+    <main className={`mx-auto py-10 ${showingResult ? 'px-8' : 'px-4 max-w-4xl'}`}>
 
       {/* Header */}
       <div className="mb-8 text-center">
@@ -160,71 +174,86 @@ export default function Home() {
         </>
       )}
 
-      {/* Results */}
-      {result && (pageState === 'result' || pageState === 'saving' || pageState === 'saved') && (
-        <div className="space-y-5">
+      {/* Results — two-column layout with chat */}
+      {showingResult && (
+        <div className="flex gap-5 items-start">
 
-          {/* Top bar with "Classify another" */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handleReset}
-              className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-            >
-              ← Classify another document
-            </button>
-            <span className="text-xs text-gray-400">{result.document_file}</span>
+          {/* Left column — classification result */}
+          <div className="flex-1 min-w-0 space-y-5">
+
+            {/* Top bar with "Classify another" */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleReset}
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                ← Classify another document
+              </button>
+              <span className="text-xs text-gray-400">{result.document_file}</span>
+            </div>
+
+            {/* Metadata */}
+            <ResultHeader result={result} />
+
+            {/* Journal entries (editable) */}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Journal Entries
+                <span className="ml-2 text-xs font-normal normal-case text-gray-400">
+                  — edit cells as needed before confirming
+                </span>
+              </h2>
+              <JournalTable
+                entries={result.journal_entries}
+                onChange={handleEntriesChange}
+              />
+            </div>
+
+            {/* Reasoning */}
+            <ReasoningPanel reasoning={result.reasoning} />
+
+            {/* Agent trace */}
+            {result.agent_log && <AgentLogPanel log={result.agent_log} />}
+
+            {/* Confirm button */}
+            {(pageState === 'result' || pageState === 'saving') && (
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={handleSave}
+                  disabled={pageState === 'saving'}
+                  className={`
+                    px-8 py-3 rounded-xl font-semibold text-white text-sm tracking-wide transition-all shadow-md
+                    ${pageState === 'saving'
+                      ? 'bg-gray-300 cursor-not-allowed'
+                      : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 hover:shadow-lg'}
+                  `}
+                >
+                  {pageState === 'saving' ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                      Saving…
+                    </span>
+                  ) : (
+                    'Confirm & Save ✓'
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Metadata */}
-          <ResultHeader result={result} />
-
-          {/* Journal entries (editable) */}
-          <div>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Journal Entries
-              <span className="ml-2 text-xs font-normal normal-case text-gray-400">
-                — edit cells as needed before confirming
-              </span>
-            </h2>
-            <JournalTable
-              entries={result.journal_entries}
-              onChange={handleEntriesChange}
+          {/* Right column — chat panel */}
+          <div className="w-[440px] shrink-0 sticky top-4" style={{ height: 'calc(100vh - 2rem)' }}>
+            <ChatPanel
+              classification={result}
+              messages={chatMessages}
+              onMessagesChange={setChatMessages}
+              onApplyUpdate={handleApplyUpdate}
             />
           </div>
 
-          {/* Reasoning */}
-          <ReasoningPanel reasoning={result.reasoning} />
-
-          {/* Agent trace */}
-          {result.agent_log && <AgentLogPanel log={result.agent_log} />}
-
-          {/* Confirm button */}
-          {(pageState === 'result' || pageState === 'saving') && (
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={handleSave}
-                disabled={pageState === 'saving'}
-                className={`
-                  px-8 py-3 rounded-xl font-semibold text-white text-sm tracking-wide transition-all shadow-md
-                  ${pageState === 'saving'
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 hover:shadow-lg'}
-                `}
-              >
-                {pageState === 'saving' ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                    </svg>
-                    Saving…
-                  </span>
-                ) : (
-                  'Confirm & Save ✓'
-                )}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </main>
